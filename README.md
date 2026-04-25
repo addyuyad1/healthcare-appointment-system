@@ -256,17 +256,6 @@ npm test
 
 ---
 
-## 📸 Screenshots
-
-📌 Add screenshots from:
-
-* `/login`
-* `/doctors`
-* `/appointments`
-* `/calendar`
-
----
-
 ## 📊 Future Enhancements
 
 * 💳 Payment integration (Stripe)
