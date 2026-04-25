@@ -1,4 +1,4 @@
-import { http } from "../../../services/http";
+import { apiGet } from "../../../services/http";
 import type {
   DoctorProfile,
   DoctorsQuery,
@@ -7,13 +7,11 @@ import type {
 
 export const doctorsApi = {
   async getDoctors(query?: DoctorsQuery) {
-    const response = await http.get<PaginatedResponse<DoctorProfile>>("/doctors", {
+    return apiGet<PaginatedResponse<DoctorProfile>>("/doctors", {
       params: query,
     });
-    return response.data;
   },
   async getDoctorById(doctorId: string) {
-    const response = await http.get<DoctorProfile>(`/doctors/${doctorId}`);
-    return response.data;
+    return apiGet<DoctorProfile>(`/doctors/${doctorId}`);
   },
 };

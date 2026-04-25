@@ -1,4 +1,4 @@
-import { http } from "../../../services/http";
+import { apiGet, apiPatch, apiPost } from "../../../services/http";
 import type {
   AppointmentFilters,
   AppointmentRecord,
@@ -8,20 +8,17 @@ import type {
 
 export const appointmentsApi = {
   async getAppointments(filters?: AppointmentFilters) {
-    const response = await http.get<AppointmentRecord[]>("/appointments", {
+    return apiGet<AppointmentRecord[]>("/appointments", {
       params: filters,
     });
-    return response.data;
   },
   async bookAppointment(payload: BookAppointmentPayload) {
-    const response = await http.post<AppointmentRecord>("/appointments", payload);
-    return response.data;
+    return apiPost<AppointmentRecord, BookAppointmentPayload>("/appointments", payload);
   },
   async updateAppointment(appointmentId: string, payload: UpdateAppointmentPayload) {
-    const response = await http.patch<AppointmentRecord>(
+    return apiPatch<AppointmentRecord, UpdateAppointmentPayload>(
       `/appointments/${appointmentId}`,
       payload,
     );
-    return response.data;
   },
 };

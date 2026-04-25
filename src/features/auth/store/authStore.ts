@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { authApi } from "../api/authApi";
+import { clearAuthToken, getAuthToken, setAuthToken } from "../../../services/authToken";
 import { getErrorMessage } from "../../../services/http";
 import type { LoginPayload, SignupPayload, User } from "../../../shared/types/models";
 
@@ -23,6 +24,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   async bootstrap() {
     set({ isBootstrapping: true });
 
+    if (!getAuthToken()) {
+      set({ user: null, isBootstrapping: false });
+      return;
+    }
+
     try {
       const user = await authApi.getSession();
       set({ user, error: null, isBootstrapping: false });
@@ -35,6 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     try {
       const response = await authApi.login(payload);
+      setAuthToken(response.token);
       set({ user: response.user, isLoading: false, error: null });
       return true;
     } catch (error) {
@@ -47,6 +54,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     try {
       const response = await authApi.signup(payload);
+      setAuthToken(response.token);
       set({ user: response.user, isLoading: false, error: null });
       return true;
     } catch (error) {
@@ -60,6 +68,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       await authApi.logout();
     } finally {
+      clearAuthToken();
       set({ user: null, error: null, isLoading: false });
     }
   },

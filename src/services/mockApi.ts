@@ -28,6 +28,7 @@ interface Database {
   appointments: Appointment[];
   notifications: NotificationItem[];
   session: {
+    token: string;
     userId: string;
   } | null;
 }
@@ -250,6 +251,19 @@ function rejectResponse(
       response,
     ),
   );
+}
+
+function getAuthorizedUser(database: Database, config: InternalAxiosRequestConfig) {
+  const authorizationHeader =
+    (config.headers.Authorization as string | undefined) ??
+    (config.headers.authorization as string | undefined);
+  const token = authorizationHeader?.replace("Bearer ", "");
+
+  if (!token || !database.session || token !== database.session.token) {
+    return null;
+  }
+
+  return findUser(database, database.session.userId) ?? null;
 }
 
 function findUser(database: Database, userId: string) {
@@ -522,12 +536,13 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
       });
     }
 
-    database.session = { userId: user.id };
+    const token = `token-${user.id}-${crypto.randomUUID()}`;
+    database.session = { token, userId: user.id };
     writeDatabase(database);
 
     return buildResponse<AuthResponse>(config, 200, {
       user: sanitizeUser(user),
-      token: `token-${user.id}`,
+      token,
     });
   }
 
@@ -573,7 +588,8 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
       });
     }
 
-    database.session = { userId: newUser.id };
+    const token = `token-${newUser.id}-${crypto.randomUUID()}`;
+    database.session = { token, userId: newUser.id };
     createNotification(
       database,
       newUser.id,
@@ -586,25 +602,16 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
 
     return buildResponse<AuthResponse>(config, 201, {
       user: sanitizeUser(newUser),
-      token: `token-${newUser.id}`,
+      token,
     });
   }
 
   if (path === "/auth/session" && method === "get") {
-    if (!database.session) {
+    const user = getAuthorizedUser(database, config);
+
+    if (!database.session || !user) {
       return rejectResponse(config, 401, {
         message: "No active session found.",
-      });
-    }
-
-    const user = findUser(database, database.session.userId);
-
-    if (!user) {
-      database.session = null;
-      writeDatabase(database);
-
-      return rejectResponse(config, 401, {
-        message: "Session expired.",
       });
     }
 
@@ -612,6 +619,12 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
   }
 
   if (path === "/auth/logout" && method === "post") {
+    if (!getAuthorizedUser(database, config)) {
+      return rejectResponse(config, 401, {
+        message: "You are not authorized to perform this action.",
+      });
+    }
+
     database.session = null;
     writeDatabase(database);
 
@@ -673,6 +686,12 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
   }
 
   if (path === "/appointments" && method === "get") {
+    if (!getAuthorizedUser(database, config)) {
+      return rejectResponse(config, 401, {
+        message: "You are not authorized to view appointments.",
+      });
+    }
+
     const doctorId =
       (config.params?.doctorId as string | undefined) ??
       url.searchParams.get("doctorId") ??
@@ -716,11 +735,19 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
   }
 
   if (path === "/appointments" && method === "post") {
+    const authorizedUser = getAuthorizedUser(database, config);
+
+    if (!authorizedUser) {
+      return rejectResponse(config, 401, {
+        message: "You are not authorized to create appointments.",
+      });
+    }
+
     const payload = parseRequestBody<BookAppointmentPayload>(config.data);
     const doctor = findDoctor(database, payload.doctorId);
     const patient = findUser(database, payload.patientId);
 
-    if (!doctor || !patient) {
+    if (!doctor || !patient || authorizedUser.id !== payload.patientId) {
       return rejectResponse(config, 404, {
         message: "Unable to create appointment. Doctor or patient was not found.",
       });
@@ -753,6 +780,14 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
   }
 
   if (path.startsWith("/appointments/") && method === "patch") {
+    const authorizedUser = getAuthorizedUser(database, config);
+
+    if (!authorizedUser) {
+      return rejectResponse(config, 401, {
+        message: "You are not authorized to update appointments.",
+      });
+    }
+
     const appointmentId = path.split("/")[2];
     const payload = parseRequestBody<UpdateAppointmentPayload>(config.data);
     const appointment = database.appointments.find((item) => item.id === appointmentId);
@@ -760,6 +795,15 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
     if (!appointment) {
       return rejectResponse(config, 404, {
         message: "Appointment not found.",
+      });
+    }
+
+    if (
+      authorizedUser.id !== appointment.patientId &&
+      authorizedUser.id !== appointment.doctorId
+    ) {
+      return rejectResponse(config, 403, {
+        message: "You do not have permission to update this appointment.",
       });
     }
 
@@ -801,12 +845,13 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
   }
 
   if (path === "/notifications" && method === "get") {
+    const authorizedUser = getAuthorizedUser(database, config);
     const userId =
       (config.params?.userId as string | undefined) ??
       url.searchParams.get("userId") ??
       undefined;
 
-    if (!userId) {
+    if (!userId || !authorizedUser || authorizedUser.id !== userId) {
       return rejectResponse(config, 400, {
         message: "A userId is required to load notifications.",
       });
@@ -828,6 +873,14 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
   }
 
   if (path.startsWith("/notifications/") && method === "patch") {
+    const authorizedUser = getAuthorizedUser(database, config);
+
+    if (!authorizedUser) {
+      return rejectResponse(config, 401, {
+        message: "You are not authorized to update notifications.",
+      });
+    }
+
     const notificationId = path.split("/")[2];
     const payload = parseRequestBody<{ read?: boolean }>(config.data);
     const notification = database.notifications.find((item) => item.id === notificationId);
@@ -838,6 +891,12 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
       });
     }
 
+    if (notification.userId !== authorizedUser.id) {
+      return rejectResponse(config, 403, {
+        message: "You do not have permission to update this notification.",
+      });
+    }
+
     notification.read = payload.read ?? notification.read;
     writeDatabase(database);
 
@@ -845,9 +904,10 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
   }
 
   if (path === "/notifications/read-all" && method === "post") {
+    const authorizedUser = getAuthorizedUser(database, config);
     const payload = parseRequestBody<{ userId?: string }>(config.data);
 
-    if (!payload.userId) {
+    if (!payload.userId || !authorizedUser || authorizedUser.id !== payload.userId) {
       return rejectResponse(config, 400, {
         message: "A userId is required to mark notifications as read.",
       });

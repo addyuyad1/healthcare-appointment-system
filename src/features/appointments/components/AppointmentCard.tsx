@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,7 +31,7 @@ const rescheduleSchema = z.object({
 
 type RescheduleValues = z.infer<typeof rescheduleSchema>;
 
-export function AppointmentCard({
+function AppointmentCardComponent({
   appointment,
   availableSlots,
   isSaving,
@@ -157,7 +157,7 @@ export function AppointmentCard({
             {rescheduleError}
           </div>
         ) : null}
-        <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit(submitReschedule)}>
+        <form className="grid gap-4 md:grid-cols-2" noValidate onSubmit={handleSubmit(submitReschedule)}>
           <Input
             label="New date"
             min={getTodayDate()}
@@ -210,3 +210,5 @@ export function AppointmentCard({
     </>
   );
 }
+
+export const AppointmentCard = memo(AppointmentCardComponent);

@@ -1,20 +1,17 @@
-import { http } from "../../../services/http";
+import { apiGet, apiPost } from "../../../services/http";
 import type { AuthResponse, LoginPayload, SignupPayload, User } from "../../../shared/types/models";
 
 export const authApi = {
   async login(payload: LoginPayload) {
-    const response = await http.post<AuthResponse>("/auth/login", payload);
-    return response.data;
+    return apiPost<AuthResponse, LoginPayload>("/auth/login", payload);
   },
   async signup(payload: SignupPayload) {
-    const response = await http.post<AuthResponse>("/auth/signup", payload);
-    return response.data;
+    return apiPost<AuthResponse, SignupPayload>("/auth/signup", payload);
   },
   async getSession() {
-    const response = await http.get<User>("/auth/session");
-    return response.data;
+    return apiGet<User>("/auth/session");
   },
   async logout() {
-    await http.post("/auth/logout");
+    await apiPost("/auth/logout");
   },
 };

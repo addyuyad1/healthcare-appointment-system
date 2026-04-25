@@ -161,7 +161,7 @@ export function BookingForm({ doctor, user }: BookingFormProps) {
         </p>
       </div>
 
-      <form className="mt-6 space-y-4" onSubmit={handleSubmit(submitForm)}>
+      <form className="mt-6 space-y-4" noValidate onSubmit={handleSubmit(submitForm)}>
         <Input
           label="Appointment date"
           min={getTodayDate()}

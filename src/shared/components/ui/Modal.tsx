@@ -1,3 +1,4 @@
+import { useEffect, useId } from "react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "../../utils/cn";
@@ -21,18 +22,51 @@ export function Modal({
   onClose,
   title,
 }: PropsWithChildren<ModalProps>) {
+  const titleId = useId();
+  const descriptionId = useId();
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onClose]);
+
   if (!isOpen) {
     return null;
   }
 
   return createPortal(
-    <div className="modal-overlay px-4" role="dialog" aria-modal="true">
+    <div
+      className="modal-overlay px-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      aria-describedby={description ? descriptionId : undefined}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div className={cn("modal-panel w-full max-w-2xl", className)}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-semibold text-slate-950">{title}</h2>
+            <h2 id={titleId} className="text-2xl font-semibold text-slate-950">
+              {title}
+            </h2>
             {description ? (
-              <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+              <p id={descriptionId} className="mt-2 text-sm leading-6 text-slate-600">
+                {description}
+              </p>
             ) : null}
           </div>
           <Button variant="ghost" onClick={onClose}>

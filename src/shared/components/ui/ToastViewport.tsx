@@ -73,7 +73,11 @@ export function ToastViewport() {
   const toasts = useToastStore((state) => state.toasts);
 
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-50 flex w-full max-w-sm flex-col gap-3">
+    <div
+      className="pointer-events-none fixed right-4 top-4 z-50 flex w-full max-w-sm flex-col gap-3"
+      aria-atomic="true"
+      aria-live="polite"
+    >
       {toasts.map((toast) => (
         <ToastItem key={toast.id} {...toast} />
       ))}

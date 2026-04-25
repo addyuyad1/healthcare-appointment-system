@@ -64,6 +64,9 @@ export function NotificationCenter() {
       <button
         className="relative rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
         type="button"
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
         onClick={() => setIsOpen((value) => !value)}
       >
         Notifications
@@ -75,7 +78,11 @@ export function NotificationCenter() {
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 top-16 z-40 w-[360px] rounded-3xl border border-white/80 bg-white/95 p-4 shadow-soft backdrop-blur">
+        <div
+          className="absolute right-0 top-16 z-40 w-[360px] rounded-3xl border border-white/80 bg-white/95 p-4 shadow-soft backdrop-blur"
+          role="dialog"
+          aria-label="Notification center"
+        >
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-semibold text-slate-950">Updates</h3>

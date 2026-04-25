@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "../../../shared/components/ui/Badge";
 import { Button } from "../../../shared/components/ui/Button";
@@ -9,7 +10,7 @@ interface DoctorCardProps {
   doctor: DoctorProfile;
 }
 
-export function DoctorCard({ doctor }: DoctorCardProps) {
+function DoctorCardComponent({ doctor }: DoctorCardProps) {
   return (
     <Card className="h-full border-white/80 bg-white/95">
       <div className="flex h-full flex-col gap-6">
@@ -56,3 +57,5 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
     </Card>
   );
 }
+
+export const DoctorCard = memo(DoctorCardComponent);

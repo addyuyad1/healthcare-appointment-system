@@ -2,6 +2,7 @@ import type { PropsWithChildren } from "react";
 import { useEffect } from "react";
 import { useAuthStore } from "../../features/auth/store/authStore";
 import { ToastViewport } from "../../shared/components/ui/ToastViewport";
+import { installGlobalMonitoring } from "../../services/monitoring";
 
 function AppBootstrap({ children }: PropsWithChildren) {
   const bootstrap = useAuthStore((state) => state.bootstrap);
@@ -10,6 +11,8 @@ function AppBootstrap({ children }: PropsWithChildren) {
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+
+  useEffect(() => installGlobalMonitoring(), []);
 
   if (isBootstrapping) {
     return (

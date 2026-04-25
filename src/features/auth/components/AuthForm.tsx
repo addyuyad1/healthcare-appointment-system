@@ -71,7 +71,7 @@ export function AuthForm({
       name: "",
       password: mode === "login" ? "password123" : "",
       role: "patient",
-      specialization: "General Medicine",
+      specialization: "",
     },
     resolver: zodResolver(schema),
   });
@@ -114,7 +114,7 @@ export function AuthForm({
         </div>
       </div>
 
-      <form className="mt-8 space-y-5" onSubmit={handleSubmit(submitForm)}>
+      <form className="mt-8 space-y-5" noValidate onSubmit={handleSubmit(submitForm)}>
         {isSignup ? (
           <Input
             label="Full name"
@@ -141,6 +141,7 @@ export function AuthForm({
             error={errors.specialization?.message}
             {...register("specialization")}
           >
+            <option value="">Select specialization</option>
             {doctorSpecializations.map((option) => (
               <option key={option} value={option}>
                 {option}

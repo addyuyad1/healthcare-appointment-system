@@ -99,6 +99,24 @@ export const router = createBrowserRouter([
         ],
       },
       {
+        element: <ProtectedRoute allowedRoles={["patient"]} />,
+        children: [
+          {
+            path: "dashboard/patient",
+            element: <DashboardPage />,
+          },
+        ],
+      },
+      {
+        element: <ProtectedRoute allowedRoles={["doctor"]} />,
+        children: [
+          {
+            path: "dashboard/doctor",
+            element: <DashboardPage />,
+          },
+        ],
+      },
+      {
         path: "*",
         element: <NotFoundPage />,
       },

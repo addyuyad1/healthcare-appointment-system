@@ -1,11 +1,6 @@
 import axios from "axios";
-import { mockApiAdapter } from "./mockApi";
-
-export const http = axios.create({
-  adapter: mockApiAdapter,
-  baseURL: "/api",
-  timeout: 1200,
-});
+export { apiClient as http } from "./api/client";
+export { apiGet, apiPatch, apiPost } from "./api/request";
 
 export function getErrorMessage(error: unknown) {
   if (axios.isAxiosError(error)) {

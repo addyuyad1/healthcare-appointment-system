@@ -49,6 +49,8 @@ export function AppShell() {
 
           <button
             className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 md:hidden"
+            aria-expanded={isMenuOpen}
+            aria-label="Open navigation menu"
             onClick={() => setIsMenuOpen((value) => !value)}
             type="button"
           >
@@ -151,7 +153,7 @@ export function AppShell() {
         ) : null}
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 md:py-10">
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 md:py-10" tabIndex={-1}>
         <Suspense fallback={<RouteFallback />}>
           <Outlet />
         </Suspense>
