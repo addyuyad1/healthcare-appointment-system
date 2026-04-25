@@ -281,5 +281,3 @@ npm test
 
 If you like this project, give it a ⭐ — it helps a lot! 💙
 
----
-dth="317" height="191" alt="{7A8B202C-29B8-4A4E-A310-F643293773B8}" src="https://github.com/user-attachments/assets/820c9da7-cc39-46fa-9d4f-730b52dd4dd0" />
