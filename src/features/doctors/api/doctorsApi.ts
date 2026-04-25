@@ -1,10 +1,14 @@
 import { http } from "../../../services/http";
-import type { DoctorProfile } from "../../../shared/types/models";
+import type {
+  DoctorProfile,
+  DoctorsQuery,
+  PaginatedResponse,
+} from "../../../shared/types/models";
 
 export const doctorsApi = {
-  async getDoctors(specialization?: string) {
-    const response = await http.get<DoctorProfile[]>("/doctors", {
-      params: specialization ? { specialization } : undefined,
+  async getDoctors(query?: DoctorsQuery) {
+    const response = await http.get<PaginatedResponse<DoctorProfile>>("/doctors", {
+      params: query,
     });
     return response.data;
   },

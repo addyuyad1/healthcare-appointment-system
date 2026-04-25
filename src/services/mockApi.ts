@@ -1,3 +1,4 @@
+import { AxiosError } from "axios";
 import type {
   AxiosAdapter,
   AxiosResponse,
@@ -9,7 +10,12 @@ import type {
   AuthResponse,
   BookAppointmentPayload,
   DoctorProfile,
+  DoctorsQuery,
   LoginPayload,
+  NotificationCategory,
+  NotificationChannel,
+  NotificationItem,
+  PaginatedResponse,
   SignupPayload,
   UpdateAppointmentPayload,
   User,
@@ -20,9 +26,14 @@ interface Database {
   users: UserRecord[];
   doctors: DoctorProfile[];
   appointments: Appointment[];
+  notifications: NotificationItem[];
   session: {
     userId: string;
   } | null;
+}
+
+interface ResponseErrorPayload {
+  message: string;
 }
 
 const DATABASE_KEY = "healthcare-appointment-system-db";
@@ -142,12 +153,33 @@ function getRelativeDate(daysFromToday: number) {
 }
 
 function createInitialDatabase(): Database {
-  return {
+  const database: Database = {
     users: seedUsers,
     doctors: seedDoctors,
     appointments: seedAppointments,
+    notifications: [],
     session: null,
   };
+
+  createNotification(
+    database,
+    "patient-1",
+    "Welcome back",
+    "Your care workspace is ready. Review upcoming visits or discover new doctors.",
+    "system",
+    ["in-app"],
+  );
+
+  createNotification(
+    database,
+    "doctor-1",
+    "Schedule summary ready",
+    "Your dashboard is set up with upcoming consultations and live notification support.",
+    "system",
+    ["in-app"],
+  );
+
+  return database;
 }
 
 function readDatabase(): Database {
@@ -203,15 +235,36 @@ function buildResponse<T>(
   };
 }
 
+function rejectResponse(
+  config: InternalAxiosRequestConfig,
+  status: number,
+  data: ResponseErrorPayload,
+) {
+  const response = buildResponse(config, status, data);
+  return Promise.reject(
+    new AxiosError(
+      data.message,
+      String(status),
+      config,
+      undefined,
+      response,
+    ),
+  );
+}
+
 function findUser(database: Database, userId: string) {
   return database.users.find((user) => user.id === userId);
+}
+
+function findDoctor(database: Database, doctorId: string) {
+  return database.doctors.find((doctor) => doctor.id === doctorId);
 }
 
 function enrichAppointment(
   database: Database,
   appointment: Appointment,
 ): AppointmentRecord {
-  const doctor = database.doctors.find((item) => item.id === appointment.doctorId);
+  const doctor = findDoctor(database, appointment.doctorId);
   const patient = findUser(database, appointment.patientId);
 
   return {
@@ -241,8 +294,210 @@ function isSlotTaken(
   );
 }
 
+function createNotification(
+  database: Database,
+  userId: string,
+  title: string,
+  message: string,
+  category: NotificationCategory,
+  channels: NotificationChannel[],
+  appointmentId?: string,
+) {
+  const createdAt = new Date().toISOString();
+
+  channels.forEach((channel) => {
+    database.notifications.push({
+      id: `notification-${crypto.randomUUID()}`,
+      appointmentId,
+      category,
+      channel,
+      createdAt,
+      message,
+      read: channel === "email",
+      title,
+      userId,
+    });
+  });
+}
+
+function createAppointmentNotifications(
+  database: Database,
+  appointment: Appointment,
+  category: Exclude<NotificationCategory, "system" | "reminder">,
+) {
+  const enrichedAppointment = enrichAppointment(database, appointment);
+  const patientTitleMap = {
+    booking: "Appointment booked",
+    cancellation: "Appointment cancelled",
+    reschedule: "Appointment updated",
+  };
+  const doctorTitleMap = {
+    booking: "New patient booking",
+    cancellation: "Appointment cancelled",
+    reschedule: "Schedule updated",
+  };
+
+  const patientMessage =
+    category === "booking"
+      ? `Your appointment with ${enrichedAppointment.doctorName} is confirmed for ${appointment.date} at ${appointment.timeSlot}.`
+      : category === "cancellation"
+        ? `Your appointment with ${enrichedAppointment.doctorName} on ${appointment.date} at ${appointment.timeSlot} was cancelled.`
+        : `Your appointment with ${enrichedAppointment.doctorName} has been moved to ${appointment.date} at ${appointment.timeSlot}.`;
+
+  const doctorMessage =
+    category === "booking"
+      ? `${enrichedAppointment.patientName} booked ${appointment.date} at ${appointment.timeSlot}.`
+      : category === "cancellation"
+        ? `${enrichedAppointment.patientName}'s appointment on ${appointment.date} at ${appointment.timeSlot} was cancelled.`
+        : `${enrichedAppointment.patientName}'s appointment was rescheduled to ${appointment.date} at ${appointment.timeSlot}.`;
+
+  createNotification(
+    database,
+    appointment.patientId,
+    patientTitleMap[category],
+    patientMessage,
+    category,
+    ["in-app", "email"],
+    appointment.id,
+  );
+
+  createNotification(
+    database,
+    appointment.doctorId,
+    doctorTitleMap[category],
+    doctorMessage,
+    category,
+    ["in-app", "email"],
+    appointment.id,
+  );
+}
+
+function ensureReminderNotifications(database: Database, userId?: string) {
+  const today = new Date();
+
+  database.appointments.forEach((appointment) => {
+    if (appointment.status !== "scheduled") {
+      return;
+    }
+
+    const appointmentDate = new Date(`${appointment.date}T00:00:00`);
+    const dayDifference = Math.ceil(
+      (appointmentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    if (dayDifference < 0 || dayDifference > 1) {
+      return;
+    }
+
+    [appointment.patientId, appointment.doctorId].forEach((recipientId) => {
+      if (userId && recipientId !== userId) {
+        return;
+      }
+
+      const exists = database.notifications.some(
+        (notification) =>
+          notification.appointmentId === appointment.id &&
+          notification.userId === recipientId &&
+          notification.category === "reminder" &&
+          notification.channel === "in-app",
+      );
+
+      if (exists) {
+        return;
+      }
+
+      const counterpart =
+        recipientId === appointment.patientId
+          ? enrichAppointment(database, appointment).doctorName
+          : enrichAppointment(database, appointment).patientName;
+      const noun = recipientId === appointment.patientId ? "with" : "for";
+
+      createNotification(
+        database,
+        recipientId,
+        "Upcoming appointment reminder",
+        `Reminder: you have an appointment ${noun} ${counterpart} on ${appointment.date} at ${appointment.timeSlot}.`,
+        "reminder",
+        ["in-app", "email"],
+        appointment.id,
+      );
+    });
+  });
+}
+
+function parseNumber(value: unknown, fallback?: number) {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+
+  const parsedValue = Number(value);
+  return Number.isNaN(parsedValue) ? fallback : parsedValue;
+}
+
+function isDoctorAvailableOnDate(
+  database: Database,
+  doctor: DoctorProfile,
+  date: string,
+) {
+  const bookedSlots = new Set(
+    database.appointments
+      .filter(
+        (appointment) =>
+          appointment.doctorId === doctor.id &&
+          appointment.date === date &&
+          appointment.status === "scheduled",
+      )
+      .map((appointment) => appointment.timeSlot),
+  );
+
+  return doctor.availableTimeSlots.some((slot) => !bookedSlots.has(slot));
+}
+
+function getDoctorQuery(config: InternalAxiosRequestConfig, url: URL): DoctorsQuery {
+  return {
+    availabilityDate:
+      (config.params?.availabilityDate as string | undefined) ??
+      url.searchParams.get("availabilityDate") ??
+      undefined,
+    minRating: parseNumber(
+      config.params?.minRating ?? url.searchParams.get("minRating"),
+      undefined,
+    ),
+    page: parseNumber(config.params?.page ?? url.searchParams.get("page"), 1),
+    pageSize: parseNumber(config.params?.pageSize ?? url.searchParams.get("pageSize"), 6),
+    search:
+      (config.params?.search as string | undefined) ??
+      url.searchParams.get("search") ??
+      undefined,
+    specialization:
+      (config.params?.specialization as string | undefined) ??
+      url.searchParams.get("specialization") ??
+      undefined,
+  };
+}
+
+function paginate<T>(
+  items: T[],
+  page = 1,
+  pageSize = 6,
+): PaginatedResponse<T> {
+  const safePageSize = Math.max(pageSize, 1);
+  const total = items.length;
+  const totalPages = Math.max(Math.ceil(total / safePageSize), 1);
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const startIndex = (safePage - 1) * safePageSize;
+
+  return {
+    items: items.slice(startIndex, startIndex + safePageSize),
+    page: safePage,
+    pageSize: safePageSize,
+    total,
+    totalPages,
+  };
+}
+
 export const mockApiAdapter: AxiosAdapter = async (config) => {
-  await new Promise((resolve) => window.setTimeout(resolve, 240));
+  await new Promise((resolve) => window.setTimeout(resolve, 220));
 
   const url = new URL(
     config.url?.startsWith("http")
@@ -262,7 +517,7 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
     );
 
     if (!user) {
-      return buildResponse(config, 401, {
+      return rejectResponse(config, 401, {
         message: "Invalid email or password.",
       });
     }
@@ -283,7 +538,7 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
     );
 
     if (existingUser) {
-      return buildResponse(config, 409, {
+      return rejectResponse(config, 409, {
         message: "An account with this email already exists.",
       });
     }
@@ -319,6 +574,14 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
     }
 
     database.session = { userId: newUser.id };
+    createNotification(
+      database,
+      newUser.id,
+      "Account created",
+      "Your account is ready. Start exploring doctors, appointments, and live reminders.",
+      "system",
+      ["in-app"],
+    );
     writeDatabase(database);
 
     return buildResponse<AuthResponse>(config, 201, {
@@ -329,7 +592,7 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
 
   if (path === "/auth/session" && method === "get") {
     if (!database.session) {
-      return buildResponse(config, 401, {
+      return rejectResponse(config, 401, {
         message: "No active session found.",
       });
     }
@@ -340,7 +603,7 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
       database.session = null;
       writeDatabase(database);
 
-      return buildResponse(config, 401, {
+      return rejectResponse(config, 401, {
         message: "Session expired.",
       });
     }
@@ -358,25 +621,50 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
   }
 
   if (path === "/doctors" && method === "get") {
-    const specialization =
-      config.params?.specialization ??
-      url.searchParams.get("specialization") ??
-      undefined;
+    const query = getDoctorQuery(config, url);
+    const normalizedSearch = query.search?.trim().toLowerCase();
 
-    const doctors =
-      specialization && specialization !== "All"
-        ? database.doctors.filter((doctor) => doctor.specialization === specialization)
-        : database.doctors;
+    let doctors = [...database.doctors];
 
-    return buildResponse(config, 200, doctors);
+    if (normalizedSearch) {
+      doctors = doctors.filter((doctor) =>
+        doctor.name.toLowerCase().includes(normalizedSearch),
+      );
+    }
+
+    if (query.specialization && query.specialization !== "All") {
+      doctors = doctors.filter(
+        (doctor) => doctor.specialization === query.specialization,
+      );
+    }
+
+    const minRating = query.minRating;
+
+    if (minRating !== undefined) {
+      doctors = doctors.filter((doctor) => doctor.rating >= minRating);
+    }
+
+    if (query.availabilityDate) {
+      doctors = doctors.filter((doctor) =>
+        isDoctorAvailableOnDate(database, doctor, query.availabilityDate!),
+      );
+    }
+
+    doctors.sort((first, second) => second.rating - first.rating);
+
+    return buildResponse(
+      config,
+      200,
+      paginate(doctors, query.page, query.pageSize),
+    );
   }
 
   if (path.startsWith("/doctors/") && method === "get") {
     const doctorId = path.split("/")[2];
-    const doctor = database.doctors.find((item) => item.id === doctorId);
+    const doctor = findDoctor(database, doctorId);
 
     if (!doctor) {
-      return buildResponse(config, 404, {
+      return rejectResponse(config, 404, {
         message: "Doctor profile not found.",
       });
     }
@@ -386,11 +674,17 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
 
   if (path === "/appointments" && method === "get") {
     const doctorId =
-      config.params?.doctorId ?? url.searchParams.get("doctorId") ?? undefined;
+      (config.params?.doctorId as string | undefined) ??
+      url.searchParams.get("doctorId") ??
+      undefined;
     const patientId =
-      config.params?.patientId ?? url.searchParams.get("patientId") ?? undefined;
+      (config.params?.patientId as string | undefined) ??
+      url.searchParams.get("patientId") ??
+      undefined;
     const status =
-      config.params?.status ?? url.searchParams.get("status") ?? undefined;
+      (config.params?.status as string | undefined) ??
+      url.searchParams.get("status") ??
+      undefined;
 
     let appointments = [...database.appointments];
 
@@ -423,17 +717,17 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
 
   if (path === "/appointments" && method === "post") {
     const payload = parseRequestBody<BookAppointmentPayload>(config.data);
-    const doctor = database.doctors.find((item) => item.id === payload.doctorId);
+    const doctor = findDoctor(database, payload.doctorId);
     const patient = findUser(database, payload.patientId);
 
     if (!doctor || !patient) {
-      return buildResponse(config, 404, {
+      return rejectResponse(config, 404, {
         message: "Unable to create appointment. Doctor or patient was not found.",
       });
     }
 
     if (isSlotTaken(database, payload)) {
-      return buildResponse(config, 409, {
+      return rejectResponse(config, 409, {
         message: "That time slot is already booked. Please choose another slot.",
       });
     }
@@ -452,6 +746,7 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
     };
 
     database.appointments.push(appointment);
+    createAppointmentNotifications(database, appointment, "booking");
     writeDatabase(database);
 
     return buildResponse(config, 201, enrichAppointment(database, appointment));
@@ -463,10 +758,14 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
     const appointment = database.appointments.find((item) => item.id === appointmentId);
 
     if (!appointment) {
-      return buildResponse(config, 404, {
+      return rejectResponse(config, 404, {
         message: "Appointment not found.",
       });
     }
+
+    const originalStatus = appointment.status;
+    const nextDate = payload.date ?? appointment.date;
+    const nextTimeSlot = payload.timeSlot ?? appointment.timeSlot;
 
     if (
       (payload.date || payload.timeSlot) &&
@@ -474,28 +773,97 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
         database,
         {
           doctorId: appointment.doctorId,
-          date: payload.date ?? appointment.date,
-          timeSlot: payload.timeSlot ?? appointment.timeSlot,
+          date: nextDate,
+          timeSlot: nextTimeSlot,
         },
         appointment.id,
       )
     ) {
-      return buildResponse(config, 409, {
+      return rejectResponse(config, 409, {
         message: "That new slot is already taken. Please pick another one.",
       });
     }
 
-    appointment.date = payload.date ?? appointment.date;
-    appointment.timeSlot = payload.timeSlot ?? appointment.timeSlot;
+    appointment.date = nextDate;
+    appointment.timeSlot = nextTimeSlot;
     appointment.status = payload.status ?? appointment.status;
     appointment.updatedAt = new Date().toISOString();
+
+    if (payload.status === "cancelled" && originalStatus !== "cancelled") {
+      createAppointmentNotifications(database, appointment, "cancellation");
+    } else if (payload.date || payload.timeSlot) {
+      createAppointmentNotifications(database, appointment, "reschedule");
+    }
 
     writeDatabase(database);
 
     return buildResponse(config, 200, enrichAppointment(database, appointment));
   }
 
-  return buildResponse(config, 404, {
+  if (path === "/notifications" && method === "get") {
+    const userId =
+      (config.params?.userId as string | undefined) ??
+      url.searchParams.get("userId") ??
+      undefined;
+
+    if (!userId) {
+      return rejectResponse(config, 400, {
+        message: "A userId is required to load notifications.",
+      });
+    }
+
+    ensureReminderNotifications(database, userId);
+
+    const page = parseNumber(config.params?.page ?? url.searchParams.get("page"), 1) ?? 1;
+    const pageSize =
+      parseNumber(config.params?.pageSize ?? url.searchParams.get("pageSize"), 8) ?? 8;
+
+    const notifications = database.notifications
+      .filter((notification) => notification.userId === userId)
+      .sort((first, second) => second.createdAt.localeCompare(first.createdAt));
+
+    writeDatabase(database);
+
+    return buildResponse(config, 200, paginate(notifications, page, pageSize));
+  }
+
+  if (path.startsWith("/notifications/") && method === "patch") {
+    const notificationId = path.split("/")[2];
+    const payload = parseRequestBody<{ read?: boolean }>(config.data);
+    const notification = database.notifications.find((item) => item.id === notificationId);
+
+    if (!notification) {
+      return rejectResponse(config, 404, {
+        message: "Notification not found.",
+      });
+    }
+
+    notification.read = payload.read ?? notification.read;
+    writeDatabase(database);
+
+    return buildResponse(config, 200, notification);
+  }
+
+  if (path === "/notifications/read-all" && method === "post") {
+    const payload = parseRequestBody<{ userId?: string }>(config.data);
+
+    if (!payload.userId) {
+      return rejectResponse(config, 400, {
+        message: "A userId is required to mark notifications as read.",
+      });
+    }
+
+    database.notifications = database.notifications.map((notification) =>
+      notification.userId === payload.userId
+        ? { ...notification, read: true }
+        : notification,
+    );
+    writeDatabase(database);
+
+    return buildResponse(config, 200, { success: true });
+  }
+
+  return rejectResponse(config, 404, {
     message: `Route ${method.toUpperCase()} ${path} is not implemented.`,
   });
 };

@@ -4,6 +4,7 @@ export function useAppointments() {
   const appointments = useAppointmentsStore((state) => state.appointments);
   const error = useAppointmentsStore((state) => state.error);
   const isLoading = useAppointmentsStore((state) => state.isLoading);
+  const isRefreshing = useAppointmentsStore((state) => state.isRefreshing);
   const fetchAppointments = useAppointmentsStore((state) => state.fetchAppointments);
   const bookAppointment = useAppointmentsStore((state) => state.bookAppointment);
   const cancelAppointment = useAppointmentsStore((state) => state.cancelAppointment);
@@ -20,6 +21,7 @@ export function useAppointments() {
     error,
     fetchAppointments,
     isLoading,
+    isRefreshing,
     rescheduleAppointment,
   };
 }

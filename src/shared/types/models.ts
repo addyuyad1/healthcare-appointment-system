@@ -81,3 +81,41 @@ export interface AppointmentFilters {
   patientId?: string;
   status?: "scheduled" | "cancelled";
 }
+
+export interface DoctorsQuery {
+  search?: string;
+  specialization?: string;
+  minRating?: number;
+  availabilityDate?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export type NotificationCategory =
+  | "booking"
+  | "reminder"
+  | "cancellation"
+  | "reschedule"
+  | "system";
+
+export type NotificationChannel = "in-app" | "email";
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  category: NotificationCategory;
+  channel: NotificationChannel;
+  read: boolean;
+  createdAt: string;
+  appointmentId?: string;
+}

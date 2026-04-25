@@ -1,13 +1,38 @@
+import { lazy } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
+import { useAuthStore } from "../../features/auth/store/authStore";
 import { AppShell } from "../../shared/components/layout/AppShell";
 import { ProtectedRoute, PublicOnlyRoute } from "../../shared/components/routing/ProtectedRoute";
-import { AppointmentsPage } from "../../features/appointments/pages/AppointmentsPage";
-import { LoginPage } from "../../features/auth/pages/LoginPage";
-import { SignupPage } from "../../features/auth/pages/SignupPage";
-import { DashboardPage } from "../../features/dashboard/pages/DashboardPage";
-import { DoctorProfilePage } from "../../features/doctors/pages/DoctorProfilePage";
-import { DoctorsPage } from "../../features/doctors/pages/DoctorsPage";
-import { useAuthStore } from "../../features/auth/store/authStore";
+
+const LoginPage = lazy(async () => {
+  const module = await import("../../features/auth/pages/LoginPage");
+  return { default: module.LoginPage };
+});
+
+const SignupPage = lazy(async () => {
+  const module = await import("../../features/auth/pages/SignupPage");
+  return { default: module.SignupPage };
+});
+
+const DoctorsPage = lazy(async () => {
+  const module = await import("../../features/doctors/pages/DoctorsPage");
+  return { default: module.DoctorsPage };
+});
+
+const DoctorProfilePage = lazy(async () => {
+  const module = await import("../../features/doctors/pages/DoctorProfilePage");
+  return { default: module.DoctorProfilePage };
+});
+
+const DashboardPage = lazy(async () => {
+  const module = await import("../../features/dashboard/pages/DashboardPage");
+  return { default: module.DashboardPage };
+});
+
+const AppointmentsPage = lazy(async () => {
+  const module = await import("../../features/appointments/pages/AppointmentsPage");
+  return { default: module.AppointmentsPage };
+});
 
 function RootRedirect() {
   const user = useAuthStore((state) => state.user);

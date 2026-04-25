@@ -1,10 +1,24 @@
 import { useEffect, useState } from "react";
 import { doctorsApi } from "../api/doctorsApi";
-import type { DoctorProfile } from "../../../shared/types/models";
+import type {
+  DoctorProfile,
+  DoctorsQuery,
+  PaginatedResponse,
+} from "../../../shared/types/models";
 import { getErrorMessage } from "../../../services/http";
 
-export function useDoctors(specialization?: string) {
-  const [doctors, setDoctors] = useState<DoctorProfile[]>([]);
+const defaultDoctorsResponse: PaginatedResponse<DoctorProfile> = {
+  items: [],
+  page: 1,
+  pageSize: 6,
+  total: 0,
+  totalPages: 1,
+};
+
+export function useDoctors(query: DoctorsQuery) {
+  const [response, setResponse] = useState<PaginatedResponse<DoctorProfile>>(
+    defaultDoctorsResponse,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,13 +27,13 @@ export function useDoctors(specialization?: string) {
     setIsLoading(true);
 
     void doctorsApi
-      .getDoctors(specialization && specialization !== "All" ? specialization : undefined)
+      .getDoctors(query)
       .then((result) => {
         if (!isMounted) {
           return;
         }
 
-        setDoctors(result);
+        setResponse(result);
         setError(null);
       })
       .catch((reason) => {
@@ -38,9 +52,16 @@ export function useDoctors(specialization?: string) {
     return () => {
       isMounted = false;
     };
-  }, [specialization]);
+  }, [
+    query.availabilityDate,
+    query.minRating,
+    query.page,
+    query.pageSize,
+    query.search,
+    query.specialization,
+  ]);
 
-  return { doctors, error, isLoading };
+  return { doctors: response.items, error, isLoading, pagination: response };
 }
 
 export function useDoctor(doctorId?: string) {

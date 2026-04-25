@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from "react";
 import { useEffect } from "react";
 import { useAuthStore } from "../../features/auth/store/authStore";
+import { ToastViewport } from "../../shared/components/ui/ToastViewport";
 
 function AppBootstrap({ children }: PropsWithChildren) {
   const bootstrap = useAuthStore((state) => state.bootstrap);
@@ -30,5 +31,10 @@ function AppBootstrap({ children }: PropsWithChildren) {
 }
 
 export function AppProviders({ children }: PropsWithChildren) {
-  return <AppBootstrap>{children}</AppBootstrap>;
+  return (
+    <AppBootstrap>
+      {children}
+      <ToastViewport />
+    </AppBootstrap>
+  );
 }

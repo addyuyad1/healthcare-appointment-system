@@ -18,7 +18,11 @@ interface AppointmentsState {
   appointments: AppointmentRecord[];
   error: string | null;
   isLoading: boolean;
-  fetchAppointments: (filters?: AppointmentFilters) => Promise<void>;
+  isRefreshing: boolean;
+  fetchAppointments: (
+    filters?: AppointmentFilters,
+    options?: { silent?: boolean },
+  ) => Promise<void>;
   bookAppointment: (payload: BookAppointmentPayload) => Promise<ActionResult<AppointmentRecord>>;
   cancelAppointment: (appointmentId: string) => Promise<ActionResult<AppointmentRecord>>;
   rescheduleAppointment: (
@@ -46,14 +50,28 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
   appointments: [],
   error: null,
   isLoading: false,
-  async fetchAppointments(filters) {
-    set({ isLoading: true, error: null });
+  isRefreshing: false,
+  async fetchAppointments(filters, options) {
+    set(
+      options?.silent
+        ? { isRefreshing: true }
+        : { isLoading: true, error: null },
+    );
 
     try {
       const appointments = await appointmentsApi.getAppointments(filters);
-      set({ appointments, isLoading: false, error: null });
+      set({
+        appointments,
+        error: null,
+        isLoading: false,
+        isRefreshing: false,
+      });
     } catch (error) {
-      set({ error: getErrorMessage(error), isLoading: false });
+      set({
+        error: getErrorMessage(error),
+        isLoading: false,
+        isRefreshing: false,
+      });
     }
   },
   async bookAppointment(payload) {

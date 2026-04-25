@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AuthForm } from "../components/AuthForm";
 import { useAuth } from "../hooks/useAuth";
+import type { LoginPayload, SignupPayload } from "../../../shared/types/models";
 
 export function LoginPage() {
   const { clearError, error, isLoading, login } = useAuth();
@@ -10,8 +11,8 @@ export function LoginPage() {
 
   useEffect(() => clearError(), [clearError]);
 
-  async function handleSubmit(payload: { email: string; password: string }) {
-    const success = await login(payload);
+  async function handleSubmit(payload: LoginPayload | SignupPayload) {
+    const success = await login(payload as LoginPayload);
     const nextPath =
       (location.state as { from?: string } | null)?.from ?? "/dashboard";
 

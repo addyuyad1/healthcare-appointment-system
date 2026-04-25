@@ -1,5 +1,8 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "../../../shared/components/ui/Button";
 import { Card } from "../../../shared/components/ui/Card";
 import { Input } from "../../../shared/components/ui/Input";
@@ -14,52 +17,84 @@ interface AuthFormProps {
   onSubmit: (payload: LoginPayload | SignupPayload) => Promise<void>;
 }
 
+type AuthFormValues = {
+  email: string;
+  password: string;
+  name: string;
+  role: UserRole;
+  specialization: string;
+};
+
 export function AuthForm({
   error,
   isLoading,
   mode,
   onSubmit,
 }: AuthFormProps) {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState(mode === "login" ? "patient@care.com" : "");
-  const [password, setPassword] = useState(mode === "login" ? "password123" : "");
-  const [role, setRole] = useState<UserRole>("patient");
-  const [specialization, setSpecialization] = useState("General Medicine");
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const schema = useMemo(
+    () =>
+      z
+        .object({
+          email: z.string().email("Enter a valid email address."),
+          name: z.string(),
+          password: z.string().min(6, "Password should be at least 6 characters."),
+          role: z.enum(["patient", "doctor"]),
+          specialization: z.string(),
+        })
+        .superRefine((value, context) => {
+          if (mode === "signup" && value.name.trim().length < 2) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Please enter your full name.",
+              path: ["name"],
+            });
+          }
 
-  useEffect(() => {
-    setValidationError(null);
-  }, [email, mode, name, password, role, specialization]);
+          if (mode === "signup" && value.role === "doctor" && !value.specialization) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Please choose a specialization.",
+              path: ["specialization"],
+            });
+          }
+        }),
+    [mode],
+  );
+  const {
+    formState: { errors },
+    handleSubmit,
+    register,
+    watch,
+  } = useForm<AuthFormValues>({
+    defaultValues: {
+      email: mode === "login" ? "patient@care.com" : "",
+      name: "",
+      password: mode === "login" ? "password123" : "",
+      role: "patient",
+      specialization: "General Medicine",
+    },
+    resolver: zodResolver(schema),
+  });
+  const role = watch("role");
+  const isSignup = mode === "signup";
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (mode === "signup" && name.trim().length < 2) {
-      setValidationError("Please enter your full name.");
-      return;
-    }
-
-    if (password.trim().length < 6) {
-      setValidationError("Password should be at least 6 characters.");
-      return;
-    }
-
-    if (mode === "signup") {
+  async function submitForm(values: AuthFormValues) {
+    if (isSignup) {
       await onSubmit({
-        email,
-        name: name.trim(),
-        password,
-        role,
-        specialization: role === "doctor" ? specialization : undefined,
+        email: values.email,
+        name: values.name,
+        password: values.password,
+        role: values.role,
+        specialization: values.role === "doctor" ? values.specialization : undefined,
       });
       return;
     }
 
-    await onSubmit({ email, password });
+    await onSubmit({
+      email: values.email,
+      password: values.password,
+    });
   }
-
-  const isSignup = mode === "signup";
-  const activeError = validationError || error;
 
   return (
     <Card className="w-full max-w-xl border-white/80 bg-white/95 p-8">
@@ -79,21 +114,21 @@ export function AuthForm({
         </div>
       </div>
 
-      <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+      <form className="mt-8 space-y-5" onSubmit={handleSubmit(submitForm)}>
         {isSignup ? (
           <Input
             label="Full name"
             placeholder="Enter your full name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
+            error={errors.name?.message}
+            {...register("name")}
           />
         ) : null}
 
         {isSignup ? (
           <Select
             label="Account role"
-            value={role}
-            onChange={(event) => setRole(event.target.value as UserRole)}
+            error={errors.role?.message}
+            {...register("role")}
           >
             <option value="patient">Patient</option>
             <option value="doctor">Doctor</option>
@@ -103,8 +138,8 @@ export function AuthForm({
         {isSignup && role === "doctor" ? (
           <Select
             label="Specialization"
-            value={specialization}
-            onChange={(event) => setSpecialization(event.target.value)}
+            error={errors.specialization?.message}
+            {...register("specialization")}
           >
             {doctorSpecializations.map((option) => (
               <option key={option} value={option}>
@@ -119,21 +154,22 @@ export function AuthForm({
           label="Email address"
           placeholder="you@example.com"
           type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          error={errors.email?.message}
+          {...register("email")}
         />
+
         <Input
           autoComplete={isSignup ? "new-password" : "current-password"}
           label="Password"
           placeholder="Enter your password"
           type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          error={errors.password?.message}
+          {...register("password")}
         />
 
-        {activeError ? (
+        {error ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600">
-            {activeError}
+            {error}
           </div>
         ) : null}
 

@@ -1,9 +1,21 @@
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from "../../../features/auth/hooks/useAuth";
+import { NotificationCenter } from "../../../features/notifications/components/NotificationCenter";
 import { navigationLinks } from "../../constants/navigation";
 import { cn } from "../../utils/cn";
 import { Button } from "../ui/Button";
-import { useAuth } from "../../../features/auth/hooks/useAuth";
+import { Skeleton } from "../ui/Skeleton";
+
+function RouteFallback() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-10 w-48" />
+      <Skeleton className="h-40 w-full" />
+      <Skeleton className="h-56 w-full" />
+    </div>
+  );
+}
 
 export function AppShell() {
   const { isLoading, logout, user } = useAuth();
@@ -63,6 +75,7 @@ export function AppShell() {
 
             {user ? (
               <div className="flex items-center gap-3">
+                <NotificationCenter />
                 <div className="hidden rounded-full bg-brand-50 px-4 py-2 text-sm text-brand-700 lg:block">
                   {user.name} · {user.role}
                 </div>
@@ -107,13 +120,18 @@ export function AppShell() {
               ))}
 
               {user ? (
-                <Button
-                  className="mt-2"
-                  variant="ghost"
-                  onClick={() => void handleLogout()}
-                >
-                  Log out
-                </Button>
+                <>
+                  <div className="mt-2">
+                    <NotificationCenter />
+                  </div>
+                  <Button
+                    className="mt-2"
+                    variant="ghost"
+                    onClick={() => void handleLogout()}
+                  >
+                    Log out
+                  </Button>
+                </>
               ) : (
                 <div className="mt-2 grid gap-2">
                   <Link to="/login">
@@ -134,7 +152,9 @@ export function AppShell() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 md:py-10">
-        <Outlet />
+        <Suspense fallback={<RouteFallback />}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );

@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAppointments } from "../../appointments/hooks/useAppointments";
 import { useAuth } from "../../auth/hooks/useAuth";
 import { doctorsApi } from "../../doctors/api/doctorsApi";
+import { usePolling } from "../../../shared/hooks/usePolling";
 import { Button } from "../../../shared/components/ui/Button";
 import { Card } from "../../../shared/components/ui/Card";
 import { EmptyState } from "../../../shared/components/ui/EmptyState";
 import { PageHeader } from "../../../shared/components/ui/PageHeader";
-import type { AppointmentRecord, DoctorProfile } from "../../../shared/types/models";
+import { Skeleton, StatCardSkeleton } from "../../../shared/components/ui/Skeleton";
+import type { AppointmentFilters, AppointmentRecord, DoctorProfile } from "../../../shared/types/models";
 import { formatDateWithWeekday } from "../../../shared/utils/format";
 
 function StatCard({
@@ -28,12 +30,18 @@ function StatCard({
   );
 }
 
-function NextAppointments({ appointments }: { appointments: AppointmentRecord[] }) {
+function NextAppointments({
+  appointments,
+  role,
+}: {
+  appointments: AppointmentRecord[];
+  role: "doctor" | "patient";
+}) {
   if (!appointments.length) {
     return (
       <EmptyState
         title="No upcoming appointments"
-        description="Once visits are scheduled, they will appear here with timing and patient or doctor details."
+        description="Once visits are scheduled, they will appear here with timing and care details."
       />
     );
   }
@@ -45,7 +53,7 @@ function NextAppointments({ appointments }: { appointments: AppointmentRecord[] 
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h3 className="text-lg font-semibold text-slate-950">
-                {appointment.doctorName}
+                {role === "doctor" ? appointment.patientName : appointment.doctorName}
               </h3>
               <p className="text-sm text-slate-600">{appointment.reason}</p>
             </div>
@@ -63,23 +71,42 @@ function NextAppointments({ appointments }: { appointments: AppointmentRecord[] 
 }
 
 export function DashboardPage() {
-  const { appointments, clearError, error, fetchAppointments, isLoading } = useAppointments();
+  const { appointments, clearError, error, fetchAppointments, isLoading, isRefreshing } =
+    useAppointments();
   const { user } = useAuth();
   const [doctors, setDoctors] = useState<DoctorProfile[]>([]);
 
+  const appointmentFilters = useMemo<AppointmentFilters | undefined>(
+    () =>
+      user
+        ? user.role === "doctor"
+          ? { doctorId: user.id }
+          : { patientId: user.id }
+        : undefined,
+    [user],
+  );
+
   useEffect(() => {
-    if (!user) {
+    if (!user || !appointmentFilters) {
       return;
     }
 
     clearError();
+    void fetchAppointments(appointmentFilters);
+    void doctorsApi.getDoctors({ page: 1, pageSize: 50 }).then((response) => {
+      setDoctors(response.items);
+    });
+  }, [appointmentFilters, clearError, fetchAppointments, user]);
 
-    void fetchAppointments(
-      user.role === "doctor" ? { doctorId: user.id } : { patientId: user.id },
-    );
-
-    void doctorsApi.getDoctors().then(setDoctors);
-  }, [clearError, fetchAppointments, user]);
+  usePolling(
+    () => {
+      if (appointmentFilters) {
+        void fetchAppointments(appointmentFilters, { silent: true });
+      }
+    },
+    12000,
+    Boolean(appointmentFilters),
+  );
 
   if (!user) {
     return null;
@@ -104,11 +131,16 @@ export function DashboardPage() {
         <PageHeader
           eyebrow="Doctor Dashboard"
           title={`Welcome back, ${user.name}`}
-          description="Track your upcoming consultations, today’s workload, and active patient demand from one place."
+          description="Track your upcoming consultations, today's workload, and active patient demand from one place."
           action={
-            <Link to="/appointments">
-              <Button variant="secondary">View schedule</Button>
-            </Link>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {isRefreshing ? "Refreshing" : "Live updates every 12s"}
+              </span>
+              <Link to="/appointments">
+                <Button variant="secondary">View schedule</Button>
+              </Link>
+            </div>
           }
         />
 
@@ -119,54 +151,42 @@ export function DashboardPage() {
         ) : null}
 
         <div className="grid gap-5 md:grid-cols-3">
-          <StatCard
-            helper="Appointments currently in your active queue."
-            label="Upcoming"
-            value={scheduledAppointments.length}
-          />
-          <StatCard
-            helper="Consultations scheduled for today."
-            label="Today"
-            value={todayAppointments.length}
-          />
-          <StatCard
-            helper="Unique patients with active appointments."
-            label="Patients"
-            value={uniquePatients.size}
-          />
+          {isLoading ? (
+            <>
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </>
+          ) : (
+            <>
+              <StatCard
+                helper="Appointments currently in your active queue."
+                label="Upcoming"
+                value={scheduledAppointments.length}
+              />
+              <StatCard
+                helper="Consultations scheduled for today."
+                label="Today"
+                value={todayAppointments.length}
+              />
+              <StatCard
+                helper="Unique patients with active appointments."
+                label="Patients"
+                value={uniquePatients.size}
+              />
+            </>
+          )}
         </div>
 
         <section className="space-y-4">
           <h2 className="text-xl font-semibold text-slate-950">Next appointments</h2>
           {isLoading ? (
-            <div className="panel p-8 text-sm text-slate-600">Loading dashboard...</div>
-          ) : (
             <div className="space-y-4">
-              {nextAppointments.map((appointment) => (
-                <Card key={appointment.id} className="border-white/80 bg-white/95">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-950">
-                        {appointment.patientName}
-                      </h3>
-                      <p className="text-sm text-slate-600">{appointment.reason}</p>
-                    </div>
-                    <div className="text-sm text-slate-600 md:text-right">
-                      <p className="font-semibold text-slate-900">
-                        {formatDateWithWeekday(appointment.date)}
-                      </p>
-                      <p>{appointment.timeSlot}</p>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-              {!nextAppointments.length ? (
-                <EmptyState
-                  title="No scheduled consultations"
-                  description="When patients book appointments with you, your upcoming list will appear here."
-                />
-              ) : null}
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
             </div>
+          ) : (
+            <NextAppointments appointments={nextAppointments} role="doctor" />
           )}
         </section>
       </div>
@@ -182,9 +202,14 @@ export function DashboardPage() {
         title={`Hello, ${user.name}`}
         description="Stay on top of upcoming care, discover more doctors, and keep your appointment plan current."
         action={
-          <Link to="/doctors">
-            <Button variant="secondary">Find a doctor</Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              {isRefreshing ? "Refreshing" : "Live updates every 12s"}
+            </span>
+            <Link to="/doctors">
+              <Button variant="secondary">Find a doctor</Button>
+            </Link>
+          </div>
         }
       />
 
@@ -195,21 +220,31 @@ export function DashboardPage() {
       ) : null}
 
       <div className="grid gap-5 md:grid-cols-3">
-        <StatCard
-          helper="All your currently scheduled visits."
-          label="Upcoming"
-          value={scheduledAppointments.length}
-        />
-        <StatCard
-          helper="Specialties available in the doctor directory."
-          label="Specialties"
-          value={specialtyCount}
-        />
-        <StatCard
-          helper="Doctors currently available for booking."
-          label="Doctors"
-          value={doctors.length}
-        />
+        {isLoading ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          <>
+            <StatCard
+              helper="All your currently scheduled visits."
+              label="Upcoming"
+              value={scheduledAppointments.length}
+            />
+            <StatCard
+              helper="Specialties available in the doctor directory."
+              label="Specialties"
+              value={specialtyCount}
+            />
+            <StatCard
+              helper="Doctors currently available for booking."
+              label="Doctors"
+              value={doctors.length}
+            />
+          </>
+        )}
       </div>
 
       <section className="space-y-4">
@@ -220,9 +255,12 @@ export function DashboardPage() {
           </Link>
         </div>
         {isLoading ? (
-          <div className="panel p-8 text-sm text-slate-600">Loading dashboard...</div>
+          <div className="space-y-4">
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-28 w-full" />
+          </div>
         ) : (
-          <NextAppointments appointments={nextAppointments} />
+          <NextAppointments appointments={nextAppointments} role="patient" />
         )}
       </section>
     </div>
