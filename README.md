@@ -1,225 +1,300 @@
-# Healthcare Appointment System
+# 🏥 Healthcare Appointment System
 
-A production-grade React + TypeScript application for appointment discovery, booking, scheduling, reminders, and role-based healthcare workflows.
+🚀 A **production-grade React + TypeScript platform** for seamless doctor discovery, appointment booking, scheduling, and healthcare workflow management.
 
-## Features
+---
 
-- Patient and doctor authentication with persisted token handling
-- Protected routes and role-aware route access
-- Doctor search by name with filters for specialization, rating, and date availability
-- Paginated doctor directory with lazy-loaded route chunks
-- Booking flow with React Hook Form + Zod validation
-- Real-time style slot refresh through polling to reduce booking conflicts
-- Monthly and weekly appointment calendar powered by FullCalendar
-- Appointment cancellation and rescheduling with modal confirmations
-- In-app notifications plus mock email/reminder notifications
-- Global error handling, API logging, and lightweight monitoring hooks
-- Loading skeletons, toast notifications, and accessibility-focused UI improvements
-- Jest + React Testing Library coverage for critical flows
+## 🌟 Overview
 
-## Screenshots
+This application simulates a **real-world healthcare platform** (like Practo), enabling patients and doctors to interact through a structured, scalable system.
 
-The app is ready for screenshot capture from these routes:
+💡 Built with a strong focus on:
 
-- `/login` for authentication
-- `/doctors` for discovery and filters
-- `/doctors/doctor-1` for doctor profile
-- `/appointments` for calendar and appointment management
+* Clean architecture 🧠
+* Real-world workflows ⚙️
+* Production-ready patterns 🚀
 
-Screenshot embedding was not completed in this environment because the local screenshot capture step required a headless-browser permission that was not granted. To add them locally, run:
+---
 
-```bash
-npm install
-npm run build
-npm run preview -- --host 127.0.0.1 --port 4174
+## 🎥 ScreenShot
+
+
+<img width="959" height="445" alt="{92766827-835A-4005-BBA5-532AF76B24E5}" src="https://github.com/user-attachments/assets/4c0b5867-8d05-4379-9ac4-fa734aea4d8b" />
+<img width="960" height="445" alt="{108D2D62-1A97-42B5-AD77-EC808071ED34}" src="https://github.com/user-attachments/assets/ba16c24f-06c3-4181-81af-071eb2fcb50d" />
+<img width="471" height="441" alt="{EA932058-350C-474D-833D-1D030AF2532C}" src="https://github.com/user-attachments/assets/d7ae5aac-6f33-404b-a5d2-00df7cfdf077" />
+<img width="479" height="445" alt="{B14E91D1-B927-43D2-A9FE-C7BF6EFA519B}" src="https://github.com/user-attachments/assets/9639a0b2-322e-45ae-9a31-f0d75027f99e" />
+<img width="751" height="442" alt="{B162053A-67B3-43C8-9B5A-70142514C96A}" src="https://github.com/user-attachments/assets/f7804bc3-2d8f-4082-8d37-40b6079a7bc1" />
+<img width="317" height="337" alt="{B6494B2E-31EC-49E4-A31B-29C934E8A7A4}" src="https://github.com/user-attachments/assets/c21b1fff-029a-4c20-a9b5-83ec1d9f16d3" />
+<img wi
+
+---
+
+## ✨ Features
+
+### 🔐 Authentication & Security
+
+* 👤 Patient & Doctor login/signup
+* 🔑 Token-based authentication (persisted)
+* 🛡️ Protected routes with role-based access
+
+---
+
+### 🔍 Doctor Discovery
+
+* 🔎 Search doctors by name
+* 🎯 Filter by specialization, rating, availability
+* 📄 Detailed doctor profiles
+
+---
+
+### 📅 Appointment Booking
+
+* 🕒 Select time slots with validation
+* ❌ Prevent double booking
+* 🔄 Reschedule appointments
+* 🗑️ Cancel appointments with confirmation
+
+---
+
+### 📆 Smart Calendar
+
+* 🗓️ Monthly & weekly views (FullCalendar)
+* 📍 Highlight booked slots
+* 🔄 Real-time-like updates using polling
+
+---
+
+### 🔔 Notifications
+
+* 🔔 In-app notifications
+* 📧 Mock email reminders
+* 🍞 Toast alerts for actions
+
+---
+
+### 🎨 UI/UX Excellence
+
+* 💎 Clean modern UI
+* ⚡ Loading skeletons
+* 📱 Responsive design
+* ♿ Accessibility-focused components
+
+---
+
+## 🏗️ Architecture
+
+```id="arch3"
+React UI (Feature-based)
+        ↓
+App Router + Guards
+        ↓
+State (Zustand)
+        ↓
+API Layer (Axios + Interceptors)
+        ↓
+Mock API Adapter
+        ↓
+Logger + Monitoring
 ```
 
-Then capture the routes above and place the images in a folder such as `docs/screenshots/`.
+---
 
-## Architecture
+## 🛠️ Tech Stack
 
-```mermaid
-flowchart LR
-    UI["React UI (features/*)"] --> Router["App Router + Guards"]
-    Router --> Stores["Zustand Stores"]
-    Stores --> APIs["Feature API Modules"]
-    APIs --> Requests["API Request Abstraction"]
-    Requests --> Client["Axios Client + Interceptors"]
-    Client --> Mock["Mock API Adapter"]
-    Client --> Logger["Logger"]
-    Client --> Monitor["Monitoring"]
-    Stores --> Forms["React Hook Form + Zod"]
-    Stores --> Notifications["Notification Center"]
-    Stores --> Calendar["FullCalendar Views"]
-    Mock --> Storage["Local Storage Persistence"]
-    Client --> Token["Token Storage"]
-```
+### 💻 Frontend
 
-## Tech Stack
+* ⚛️ React 18 + TypeScript
+* ⚡ Vite
+* 🎨 TailwindCSS
+* 🔀 React Router
 
-- React 18
-- TypeScript
-- Vite
-- TailwindCSS
-- React Router
-- Axios
-- Zustand
-- FullCalendar
-- React Hook Form
-- Zod
-- Jest
-- React Testing Library
+### 🧠 State & Forms
 
-## Project Structure
+* 🗂️ Zustand
+* 🧾 React Hook Form + Zod
 
-```text
+### 📡 API & Data
+
+* 🌐 Axios
+* 🧪 Mock API Adapter
+
+### 📅 UI Libraries
+
+* 📆 FullCalendar
+
+### 🧪 Testing
+
+* 🧪 Jest
+* 🔍 React Testing Library
+
+---
+
+## 📂 Project Structure
+
+```id="arch4"
 src/
-  app/
-    config/
-    providers/
-    routes/
-    store/
-  features/
-    appointments/
-    auth/
-    calendar/
-    dashboard/
-    doctors/
-    notifications/
-  services/
-    api/
-    authToken.ts
-    http.ts
-    logger.ts
-    mockApi.ts
-    monitoring.ts
-  shared/
-    components/
-    constants/
-    hooks/
-    types/
-    utils/
+├── app/                ⚙️ App config & routing
+├── features/           🧩 Feature modules
+│   ├── auth/
+│   ├── appointments/
+│   ├── doctors/
+│   ├── calendar/
+│   └── notifications/
+├── services/           🌐 API & utilities
+├── shared/             ♻️ Reusable components
+└── styles/             🎨 Global styles
 ```
 
-## Production Quality Highlights
+---
 
-### Architecture
+## ⚡ Production-Quality Highlights
 
-- Centralized API request abstraction in `src/services/api/`
-- Runtime environment config in `src/app/config/env.ts`
-- Error boundary and global monitoring bootstrap
-- Dedicated logging and monitoring services
+### 🧠 Architecture
 
-### Security
+* Centralized API abstraction
+* Environment-based configuration
+* Logging & monitoring services
 
-- Bearer token persistence with local token storage
-- Protected routes with optional role restrictions
-- Mock API authorization checks for appointments and notifications
-- Role-aware booking behavior
+---
 
-### Performance
+### 🔐 Security
 
-- Route-level code splitting with `React.lazy`
-- Deferred search input for doctor filtering
-- Memoized repeated card components
-- Polling separated into reusable shared hook
+* Token-based authentication
+* Role-based route protection
+* Authorization checks
 
-### Accessibility
+---
 
-- Labeled form controls
-- Accessible modals with `aria` metadata and `Escape` close support
-- Notification center dialog semantics
-- Toast region announced through `aria-live`
+### ⚡ Performance
 
-## Setup
+* Code splitting (React.lazy)
+* Memoization for components
+* Optimized search with debouncing
 
-### 1. Install dependencies
+---
 
-```bash
+### ♿ Accessibility
+
+* ARIA-compliant modals
+* Keyboard navigation support
+* Screen-reader friendly alerts
+
+---
+
+## ⚙️ Setup & Installation
+
+### 1️⃣ Clone Repository
+
+```bash id="cmd5"
+git clone https://github.com/your-username/healthcare-appointment-system.git
+cd healthcare-appointment-system
+```
+
+---
+
+### 2️⃣ Install Dependencies
+
+```bash id="cmd6"
 npm install
 ```
 
-### 2. Configure environment variables
+---
 
-Copy `.env.example` to `.env` and adjust values if needed:
+### 3️⃣ Configure Environment
 
-```env
+```bash id="env2"
 VITE_APP_NAME=Healthcare Appointment System
 VITE_API_BASE_URL=/api
 VITE_ENABLE_API_LOGGING=true
 VITE_ENABLE_MONITORING=true
-VITE_APP_ENV=production
 ```
 
-### 3. Start development server
+---
 
-```bash
+### 4️⃣ Run Development Server
+
+```bash id="cmd7"
 npm run dev
 ```
 
-### 4. Run production build
+---
 
-```bash
-npm run build
-```
+## 🧪 Testing
 
-### 5. Run tests
-
-```bash
+```bash id="cmd8"
 npm test
 ```
 
-## Demo Credentials
+✅ Includes:
 
-- Patient: `patient@care.com` / `password123`
-- Doctor: `doctor@care.com` / `password123`
+* Auth validation testing
+* Protected route testing
+* Double booking prevention logic
 
-## Testing
+---
 
-Critical flow coverage included:
+## 🚀 Deployment
 
-- Protected route redirect and role gating
-- Auth form validation behavior
-- Double-booking prevention in the appointment API layer
+### 🌐 Platforms
 
-Test files:
+* Frontend: **Vercel / Netlify**
+* Backend (future): **Render / Railway / Azure**
 
-- `src/shared/components/routing/ProtectedRoute.test.tsx`
-- `src/features/auth/components/AuthForm.test.tsx`
-- `src/features/appointments/api/appointmentsApi.test.ts`
+---
 
-## Deployment
+## 🔐 Demo Credentials
 
-### Vercel
+👤 Patient
 
-The project includes `vercel.json` with SPA rewrite handling:
+* Email: `patient@care.com`
+* Password: `password123`
 
-- All routes rewrite to `index.html`
-- Suitable for client-side React Router navigation
+👨‍⚕️ Doctor
 
-Deployment steps:
+* Email: `doctor@care.com`
+* Password: `password123`
 
-1. Import the repository into Vercel.
-2. Keep the default build command as `npm run build`.
-3. Keep the output directory as `dist`.
-4. Set the `VITE_*` environment variables in the Vercel dashboard.
+---
 
-## Logging and Monitoring
+## 📸 Screenshots
 
-- API request and response logs are handled in `src/services/api/client.ts`
-- Captured application errors are funneled through `src/services/monitoring.ts`
-- Global browser error and unhandled rejection listeners are registered during app bootstrap
+📌 Add screenshots from:
 
-## Available Scripts
+* `/login`
+* `/doctors`
+* `/appointments`
+* `/calendar`
 
-- `npm run dev` starts the Vite dev server
-- `npm run build` creates the production build
-- `npm run preview` serves the production build locally
-- `npm test` runs the Jest suite
-- `npm run test:watch` runs tests in watch mode
+---
 
-## Notes
+## 📊 Future Enhancements
 
-- The current backend is a secure mock adapter with local persistence, which keeps the frontend architecture ready for a real API.
-- Notification email behavior is mocked and represented as notification records and logs.
-- Polling is used for near-real-time slot freshness and can be swapped for WebSockets later without changing the feature boundaries much.
+* 💳 Payment integration (Stripe)
+* 🤖 AI symptom checker (GenAI 🚀)
+* 📡 WebSocket real-time updates
+* 📈 Analytics dashboard
+
+---
+
+## 🧠 Learnings
+
+* Built scalable feature-based architecture
+* Implemented real-world scheduling constraints
+* Designed production-ready UI/UX
+* Managed complex state & API flows
+
+---
+
+## 📬 Contact
+
+* 💼 GitHub: https://github.com/your-username
+* 🔗 LinkedIn: https://linkedin.com/in/your-profile
+
+---
+
+## ⭐ Support
+
+If you like this project, give it a ⭐ — it helps a lot! 💙
+
+---
+dth="317" height="191" alt="{7A8B202C-29B8-4A4E-A310-F643293773B8}" src="https://github.com/user-attachments/assets/820c9da7-cc39-46fa-9d4f-730b52dd4dd0" />
